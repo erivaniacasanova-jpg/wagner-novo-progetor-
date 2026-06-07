@@ -75,15 +75,10 @@ export default async function RepresentantePage({ params }: { params: Promise<{ 
       <div className="container mx-auto max-w-4xl w-full px-3 sm:px-6 md:px-8">
         <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 md:p-8">
           <div className="text-center mb-6 md:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Seja bem-vindo ao Registro de Associados</h1>
-            <p className="text-sm sm:text-base text-gray-700 mt-2 font-medium">Patrocinador: {representante.nome}</p>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">Realize seu cadastro sem consulta ao SPC/SERASA e sem fidelidade.</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Relatorio</h1>
           </div>
           <RegistrationForm representante={representante} />
         </div>
-        <footer className="text-center mt-6 md:mt-8 text-xs sm:text-sm text-gray-600 px-2">
-          <p>2026 © Federal Associados (CNPJ 29.383-343-0001/64) - Todos os direitos reservados |</p>
-        </footer>
       </div>
     </main>
   )

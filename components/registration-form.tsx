@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import ErrorModal from "@/components/error-modal"
@@ -527,17 +526,11 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
     }
 
     if (!formData.plan_id) {
-      setErrorMessage("Por favor, selecione um plano antes de continuar.")
-      setShowErrorModal(true)
       setLoading(false)
-      return
     }
 
     if (!formData.typeFrete) {
-      setErrorMessage("Por favor, selecione a forma de envio antes de continuar.")
-      setShowErrorModal(true)
       setLoading(false)
-      return
     }
 
     try {
@@ -794,80 +787,6 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
-        {/* Plano e Chip */}
-        <Card>
-          <CardContent className="pt-4 md:pt-6 px-4 md:px-6">
-            <h2 className="text-lg md:text-xl font-semibold mb-4 md:mb-6">Escolha seu Plano</h2>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Tipo de Chip</Label>
-                <RadioGroup
-                  value={formData.typeChip}
-                  onValueChange={(value) => {
-                    handleInputChange("typeChip", value)
-                    handleInputChange("plan_id", "")
-                  }}
-                  className="flex gap-4"
-                  disabled={!isFieldUnlocked("typeChip")}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="fisico" id="fisico" disabled={!isFieldUnlocked("typeChip")} />
-                    <Label htmlFor="fisico" className="font-normal cursor-pointer">
-                      Físico
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="eSim" id="eSim-chip" disabled={!isFieldUnlocked("typeChip")} />
-                    <Label htmlFor="eSim-chip" className="font-normal cursor-pointer">
-                      eSim
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div className={`space-y-2 ${!isFieldUnlocked("plan_id") ? "opacity-50 pointer-events-none" : ""}`}>
-                <Label htmlFor="plan">
-                  Plano <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={formData.plan_id}
-                  onValueChange={(value) => handleInputChange("plan_id", value)}
-                  required
-                  disabled={!isFieldUnlocked("plan_id")}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um plano" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <div className="px-2 py-1.5 text-sm font-semibold pointer-events-none" style={{ color: '#8B5CF6' }}>VIVO</div>
-                    {PLANS.VIVO.map((plan) => (
-                      <SelectItem key={plan.id} value={plan.id} className="text-gray-900 font-medium">
-                        {plan.name} - R$ {plan.price.toFixed(2).replace('.', ',')}
-                      </SelectItem>
-                    ))}
-
-                    <div className="px-2 py-1.5 text-sm font-semibold mt-2 pointer-events-none" style={{ color: '#1E90FF' }}>TIM</div>
-                    {PLANS.TIM.map((plan) => (
-                      <SelectItem key={plan.id} value={plan.id} className="text-gray-900 font-medium">
-                        {plan.name} - R$ {plan.price.toFixed(2).replace('.', ',')}
-                      </SelectItem>
-                    ))}
-
-                    <div className="px-2 py-1.5 text-sm font-semibold mt-2 pointer-events-none" style={{ color: '#DC143C' }}>CLARO</div>
-                    {PLANS.CLARO.map((plan) => (
-                      <SelectItem key={plan.id} value={plan.id} className="text-gray-900 font-medium">
-                        {plan.name} - R$ {plan.price.toFixed(2).replace('.', ',')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Dados Pessoais */}
         <Card>
           <CardContent className="pt-4 md:pt-6 px-4 md:px-6">
@@ -1107,56 +1026,6 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
                   disabled={!isFieldUnlocked("complement")}
                 />
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Forma de Envio */}
-        <Card>
-          <CardContent className="pt-4 md:pt-6 px-4 md:px-6">
-            <h2 className="text-lg md:text-xl font-semibold mb-4 md:mb-6">Forma de Envio</h2>
-            <div className={!isFieldUnlocked("typeFrete") ? "opacity-50 pointer-events-none" : ""}>
-              <RadioGroup
-                value={formData.typeFrete}
-                onValueChange={(value) => handleInputChange("typeFrete", value)}
-                className="space-y-3"
-                disabled={!isFieldUnlocked("typeFrete")}
-              >
-                {formData.typeChip === "fisico" && (
-                  <>
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Carta" id="carta" disabled={!isFieldUnlocked("typeFrete")} />
-                        <Label htmlFor="carta" className="font-normal cursor-pointer">
-                          Enviar via Carta Registrada
-                        </Label>
-                      </div>
-                      <p className="text-sm text-muted-foreground ml-6">
-                        Para quem vai receber o chip pelos Correios
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="semFrete" id="semFrete" disabled={!isFieldUnlocked("typeFrete")} />
-                        <Label htmlFor="semFrete" className="font-normal cursor-pointer">
-                          Retirar na Associação ou com um Associado
-                        </Label>
-                      </div>
-                      <p className="text-sm text-muted-foreground ml-6">
-                        Se você vai retirar o chip pessoalmente com um representante ou no caso dos planos da Vivo, vai comprar um chip para ativar de forma imediata
-                      </p>
-                    </div>
-                  </>
-                )}
-                {formData.typeChip === "eSim" && (
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="eSim" id="eSim" disabled={!isFieldUnlocked("typeFrete")} />
-                    <Label htmlFor="eSim" className="font-normal cursor-pointer">
-                      Sem a necessidade de envio (eSim)
-                    </Label>
-                  </div>
-                )}
-              </RadioGroup>
             </div>
           </CardContent>
         </Card>

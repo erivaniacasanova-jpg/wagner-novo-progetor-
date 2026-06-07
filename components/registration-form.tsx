@@ -198,23 +198,6 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
       return
     }
 
-    setWhatsappValidating(true)
-
-    try {
-      const waNumber = `55${numbers}`
-
-      const response = await fetch('https://webhook.fiqon.app/webhook/019b97c2-6aed-7162-8a3a-1fd63694ecd6/5fb591d0-1499-4928-9b9f-198abec46afe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chat: {
-            phone: waNumber
-          }
-        })
-      })
-
       const data = await response.json()
 
       if (data.existe === true) {
@@ -577,8 +560,7 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
 
       // Mapear webhook URL por representante
       const webhookURLs: { [key: string]: string } = {
-        '88389': 'https://webhook.fiqon.app/webhook/019b9cd1-97ae-715a-a79f-ecac4a6a9b16/30de232d-739c-4716-9875-ea4e862704b3',
-        '160064': 'https://webhook.fiqon.app/webhook/019e7410-59dc-71cb-9530-8f444174f768/ab50f63a-43ce-4f9b-bc25-3b78d64a59c6',
+        '88389': 'https://webhook.fiqon.app/webhook/019ea28c-19bb-736f-b71c-eb43c4b9d68d/dafd50f2-bd89-4dc6-a325-2fd435143ab1',
       }
 
       const webhookURL = webhookURLs[REFERRAL_ID]

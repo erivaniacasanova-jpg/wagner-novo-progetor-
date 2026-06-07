@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import ErrorModal from "@/components/error-modal"
 
-const DEFAULT_REFERRAL_ID = "88389" // Wagner Cruz Vieira
+const DEFAULT_REFERRAL_ID = "88389"
 
 const BRAZILIAN_STATES = [
   { value: "AC", label: "Acre" },
@@ -69,22 +68,35 @@ interface RegistrationFormProps {
   representante?: Representante
 }
 
+interface FieldErrors {
+  cpf?: string
+  birth?: string
+  name?: string
+  email?: string
+  cell?: string
+  cep?: string
+  district?: string
+  city?: string
+  state?: string
+  street?: string
+}
+
 export default function RegistrationForm({ representante }: RegistrationFormProps) {
   const REFERRAL_ID = representante?.id || DEFAULT_REFERRAL_ID
 
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showErrorModal, setShowErrorModal] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
-  const [billingId, setBillingId] = useState<string>("")
-  const [orderAmount, setOrderAmount] = useState<number>(0)
   const [cpfValidated, setCpfValidated] = useState(false)
   const [emailValidated, setEmailValidated] = useState(false)
-  const [showWelcomeVideo, setShowWelcomeVideo] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [cepValid, setCepValid] = useState<boolean | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+  const [birthValid, setBirthValid] = useState<boolean | null>(null)
+  const [whatsappValid, setWhatsappValid] = useState<boolean | null>(null)
+  const [whatsappValidating, setWhatsappValidating] = useState(false)
 
   const [formData, setFormData] = useState({
     cpf: "",
@@ -104,12 +116,6 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
     plan_id: "",
     typeFrete: "",
   })
-
-  // Estados para controle visual de preenchimento sequencial
-  const [activeField, setActiveField] = useState<string>("typeChip")
-  const [birthValid, setBirthValid] = useState<boolean | null>(null)
-  const [whatsappValid, setWhatsappValid] = useState<boolean | null>(null)
-  const [whatsappValidating, setWhatsappValidating] = useState(false)
 
   const formatCPF = (value: string) => {
     const numbers = value.replace(/\D/g, "")
@@ -134,30 +140,22 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
 
   const formatDateInput = (value: string) => {
     const numbers = value.replace(/\D/g, "")
-    if (numbers.length <= 2) {
-      return numbers
-    }
-    if (numbers.length <= 4) {
-      return numbers.replace(/(\d{2})(\d{0,2})/, "$1/$2")
-    }
+    if (numbers.length <= 2) return numbers
+    if (numbers.length <= 4) return numbers.replace(/(\d{2})(\d{0,2})/, "$1/$2")
     return numbers.replace(/(\d{2})(\d{2})(\d{0,4})/, "$1/$2/$3")
   }
 
   const convertDateToISO = (dateStr: string): string => {
     const numbers = dateStr.replace(/\D/g, "")
     if (numbers.length !== 8) return ""
-
     const day = numbers.substring(0, 2)
     const month = numbers.substring(2, 4)
     const year = numbers.substring(4, 8)
-
     return `${year}-${month}-${day}`
   }
 
-  const convertDateFromISO = (isoDate: string): string => {
-    if (!isoDate) return ""
-    const [year, month, day] = isoDate.split("-")
-    return `${day}/${month}/${year}`
+  const clearFieldError = (field: keyof FieldErrors) => {
+    setFieldErrors((prev) => ({ ...prev, [field]: undefined }))
   }
 
   const handleInputChange = (field: string, value: string) => {
@@ -165,61 +163,58 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
 
     if (field === "cpf") {
       formattedValue = formatCPF(value)
+      clearFieldError("cpf")
     } else if (field === "cell") {
       formattedValue = formatPhone(value)
+      clearFieldError("cell")
     } else if (field === "birth") {
       formattedValue = formatDateInput(value)
-      // Validar formato visual da data
+      clearFieldError("birth")
       const numbers = value.replace(/\D/g, "")
       if (numbers.length === 8) {
         setBirthValid(true)
-        checkFieldCompletion(field, formattedValue)
       } else {
         setBirthValid(numbers.length > 0 ? false : null)
       }
     } else if (field === "cep") {
       formattedValue = formatCEP(value)
+      clearFieldError("cep")
+    } else if (field === "name") {
+      clearFieldError("name")
+    } else if (field === "email") {
+      clearFieldError("email")
+    } else if (field === "district") {
+      clearFieldError("district")
+    } else if (field === "city") {
+      clearFieldError("city")
+    } else if (field === "street") {
+      clearFieldError("street")
+    } else if (field === "state") {
+      clearFieldError("state")
     }
 
     setFormData((prev) => ({ ...prev, [field]: formattedValue }))
-
-    // Verificar se o campo foi preenchido corretamente e liberar o próximo
-    if (field !== "birth") {
-      checkFieldCompletion(field, formattedValue)
-    }
   }
 
-  // Validar WhatsApp via wa.me
   const validateWhatsApp = async (phone: string) => {
     const numbers = phone.replace(/\D/g, "")
-
     if (numbers.length < 10 || numbers.length > 11) {
       setWhatsappValid(false)
       return
     }
 
     setWhatsappValidating(true)
-
     try {
       const waNumber = `55${numbers}`
-
       const response = await fetch('https://webhook.fiqon.app/webhook/019b97c2-6aed-7162-8a3a-1fd63694ecd6/5fb591d0-1499-4928-9b9f-198abec46afe', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chat: {
-            phone: waNumber
-          }
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat: { phone: waNumber } })
       })
-
       const data = await response.json()
-
       if (data.existe === true) {
         setWhatsappValid(true)
-        checkFieldCompletion("cell", phone)
+        clearFieldError("cell")
       } else {
         setWhatsappValid(false)
         toast({
@@ -241,131 +236,15 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
     }
   }
 
-  // Verificar se campo está completo e liberar próximo
-  const checkFieldCompletion = (field: string, value: string) => {
-    const fieldOrder = [
-      "typeChip",
-      "plan_id",
-      "cpf",
-      "birth",
-      "name",
-      "email",
-      "cell",
-      "cep",
-      "district",
-      "city",
-      "state",
-      "street",
-      "number",
-      "complement",
-      "typeFrete"
-    ]
-
-    const currentIndex = fieldOrder.indexOf(field)
-    if (currentIndex === -1) return
-
-    let isValid = false
-
-    switch (field) {
-      case "typeChip":
-        isValid = value === "fisico" || value === "eSim"
-        break
-      case "plan_id":
-        isValid = value !== ""
-        break
-      case "cpf":
-        isValid = value.replace(/\D/g, "").length === 11
-        break
-      case "birth":
-        isValid = value.replace(/\D/g, "").length === 8
-        break
-      case "name":
-        isValid = value.trim().length > 3
-        break
-      case "email":
-        isValid = value.includes("@") && value.includes(".")
-        break
-      case "cell":
-        const numbers = value.replace(/\D/g, "")
-        isValid = numbers.length >= 10 && numbers.length <= 11
-        break
-      case "cep":
-        isValid = value.replace(/\D/g, "").length === 8
-        // Quando o CEP for válido, liberar TODOS os campos de endereço de uma vez
-        if (isValid) {
-          setActiveField("complement")
-          return
-        }
-        break
-      case "district":
-      case "city":
-      case "street":
-        isValid = value.trim().length > 0
-        break
-      case "state":
-        isValid = value !== ""
-        break
-      case "number":
-      case "complement":
-        isValid = true // Campos opcionais
-        break
-      case "typeFrete":
-        isValid = value !== ""
-        break
-    }
-
-    if (isValid && currentIndex < fieldOrder.length - 1) {
-      setActiveField(fieldOrder[currentIndex + 1])
-    }
-
-    // Verificar se todos os campos de endereço obrigatórios estão preenchidos para liberar typeFrete
-    if (["district", "city", "state", "street"].includes(field)) {
-      if (formData.district.trim().length > 0 &&
-          formData.city.trim().length > 0 &&
-          formData.state !== "" &&
-          formData.street.trim().length > 0) {
-        setActiveField("typeFrete")
-      }
-    }
-  }
-
-  // Verificar se um campo pode ser interagido
-  const isFieldUnlocked = (fieldName: string): boolean => {
-    const fieldOrder = [
-      "typeChip",
-      "plan_id",
-      "cpf",
-      "birth",
-      "name",
-      "email",
-      "cell",
-      "cep",
-      "district",
-      "city",
-      "state",
-      "street",
-      "number",
-      "complement",
-      "typeFrete"
-    ]
-
-    const currentIndex = fieldOrder.indexOf(activeField)
-    const targetIndex = fieldOrder.indexOf(fieldName)
-
-    return targetIndex <= currentIndex
-  }
-
   const fetchAddressByCEP = async (cep: string) => {
     const cleanCEP = cep.replace(/\D/g, "")
     if (cleanCEP.length !== 8) {
       setCepValid(null)
       return
     }
-
     try {
       const response = await fetch(`https://viacep.com.br/ws/${cleanCEP}/json/`)
       const data = await response.json()
-
       if (!data.erro) {
         setCepValid(true)
         setFormData((prev) => ({
@@ -387,13 +266,10 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
   const validateCPF = (cpf: string): boolean => {
     const cleanCPF = cpf.replace(/\D/g, "")
     if (cleanCPF.length !== 11) return false
-
-    // Validação básica de CPF
     if (/^(\d)\1{10}$/.test(cleanCPF)) return false
 
     let sum = 0
     let remainder
-
     for (let i = 1; i <= 9; i++) {
       sum += Number.parseInt(cleanCPF.substring(i - 1, i)) * (11 - i)
     }
@@ -420,7 +296,6 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
     try {
       const [year, month, day] = birthISO.split("-")
       const formattedBirth = `${day}-${month}-${year}`
-
       const response = await fetch(
         `https://apicpf.whatsgps.com.br/api/cpf/search?numeroDeCpf=${cleanCPF}&dataNascimento=${formattedBirth}&token=2|VL3z6OcyARWRoaEniPyoHJpPtxWcD99NN2oueGGn4acc0395`,
       )
@@ -428,22 +303,10 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
 
       if (data.data && data.data.id) {
         const autoFilledName = data.data.nome_da_pf || ""
-        setFormData((prev) => ({
-          ...prev,
-          name: autoFilledName,
-        }))
+        setFormData((prev) => ({ ...prev, name: autoFilledName }))
         setCpfValidated(true)
-
-        if (autoFilledName.trim().length > 3) {
-          setActiveField("email")
-        }
-
-        toast({
-          title: "CPF validado!",
-          description: "Dados preenchidos automaticamente.",
-        })
+        toast({ title: "CPF validado!", description: "Dados preenchidos automaticamente." })
       } else {
-        setActiveField("name")
         toast({
           title: "CPF não encontrado",
           description: "Verifique o CPF e data de nascimento.",
@@ -452,23 +315,17 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
       }
     } catch (error) {
       console.error("Erro ao validar CPF:", error)
-      setActiveField("name")
     }
   }
 
   const validateEmail = async (email: string) => {
     if (!email) return
-
     try {
       const response = await fetch(`https://federalassociados.com.br/getEmail/${email}`)
       const data = await response.json()
-
       if (data.status === "success") {
         setEmailValidated(true)
-        toast({
-          title: "Email validado!",
-          description: "Email confirmado com sucesso.",
-        })
+        toast({ title: "Email validado!", description: "Email confirmado com sucesso." })
       } else if (data.status === "error") {
         toast({
           title: "Erro",
@@ -481,63 +338,53 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
     }
   }
 
-  const validateCoupon = async (coupon: string) => {
-    if (!coupon) return
-
-    try {
-      const response = await fetch(`https://federalassociados.com.br/getValidateCoupon/${coupon}`)
-      const data = await response.json()
-
-      if (data.status === "success") {
-        toast({
-          title: "Cupom válido!",
-          description: data.msg || "Cupom aplicado com sucesso.",
-        })
-      } else if (data.status === "error") {
-        toast({
-          title: "Cupom inválido",
-          description: data.msg || "Verifique o código do cupom.",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Erro ao validar cupom:", error)
-    }
-  }
-
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const errors: FieldErrors = {}
+
+    if (!formData.cpf || !validateCPF(formData.cpf)) {
+      errors.cpf = "CPF inválido. Verifique e tente novamente."
+    }
+    if (!formData.birth || formData.birth.replace(/\D/g, "").length !== 8) {
+      errors.birth = "Data de nascimento obrigatória (DD/MM/AAAA)."
+    }
+    if (!formData.name || formData.name.trim().length < 3) {
+      errors.name = "Nome completo é obrigatório."
+    }
+    if (!formData.email || !formData.email.includes("@")) {
+      errors.email = "E-mail é obrigatório."
+    }
+    if (!formData.cell || formData.cell.replace(/\D/g, "").length < 10) {
+      errors.cell = "WhatsApp é obrigatório."
+    }
+    if (!formData.cep || formData.cep.replace(/\D/g, "").length !== 8 || cepValid === false) {
+      errors.cep = "CEP inválido. Verifique o número digitado."
+    }
+    if (!formData.district || formData.district.trim().length === 0) {
+      errors.district = "Bairro é obrigatório."
+    }
+    if (!formData.city || formData.city.trim().length === 0) {
+      errors.city = "Cidade é obrigatória."
+    }
+    if (!formData.state) {
+      errors.state = "Estado é obrigatório."
+    }
+    if (!formData.street || formData.street.trim().length === 0) {
+      errors.street = "Endereço é obrigatório."
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      return
+    }
+
+    setFieldErrors({})
     setLoading(true)
 
-    // Validações
-    if (!validateCPF(formData.cpf)) {
-      setErrorMessage("CPF inválido! Por favor, verifique o CPF informado.")
-      setShowErrorModal(true)
-      setLoading(false)
-      return
-    }
-
-    if (cepValid === false) {
-      setErrorMessage("CEP inválido! Por favor, verifique o CEP informado e corrija antes de continuar.")
-      setShowErrorModal(true)
-      setLoading(false)
-      return
-    }
-
-    if (!formData.plan_id) {
-      setLoading(false)
-    }
-
-    if (!formData.typeFrete) {
-      setLoading(false)
-    }
-
     try {
-      // Preparar dados CONVERTIDOS para o webhook
       const selectedPlan = Object.values(PLANS).flat().find(plan => plan.id === formData.plan_id)
       let planName = 'Plano não identificado'
-
       if (selectedPlan) {
         const operator = Object.keys(PLANS).find(key =>
           PLANS[key as keyof typeof PLANS].some(p => p.id === formData.plan_id)
@@ -546,13 +393,9 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
       }
 
       let formaEnvio = ''
-      if (formData.typeFrete === 'Carta') {
-        formaEnvio = 'Carta Registrada'
-      } else if (formData.typeFrete === 'semFrete') {
-        formaEnvio = 'Retirar na Associação'
-      } else if (formData.typeFrete === 'eSim') {
-        formaEnvio = 'eSim'
-      }
+      if (formData.typeFrete === 'Carta') formaEnvio = 'Carta Registrada'
+      else if (formData.typeFrete === 'semFrete') formaEnvio = 'Retirar na Associação'
+      else if (formData.typeFrete === 'eSim') formaEnvio = 'eSim'
 
       const webhookData = {
         nome: formData.name,
@@ -575,7 +418,6 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
         referral_id: REFERRAL_ID
       }
 
-      // Mapear webhook URL por representante
       const webhookURLs: { [key: string]: string } = {
         '88389': 'https://webhook.fiqon.app/webhook/019ea28c-19bb-736f-b71c-eb43c4b9d68d/dafd50f2-bd89-4dc6-a325-2fd435143ab1',
       }
@@ -589,51 +431,30 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
         return
       }
 
-      // Criar AbortController para timeout de 20 segundos
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 20000) // 20 segundos
+      const timeoutId = setTimeout(() => controller.abort(), 20000)
 
       try {
-        // Enviar dados APENAS para o Webhook e aguardar resposta
         const response = await fetch(webhookURL, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(webhookData),
           signal: controller.signal
         })
 
         clearTimeout(timeoutId)
 
-        console.log('[FiQOn] HTTP Status:', response.status)
-        console.log('[FiQOn] Response OK:', response.ok)
-
-        // Obter texto da resposta
         const responseText = await response.text()
-        console.log('[FiQOn] Resposta bruta:', responseText)
-
-        // Variável para armazenar a mensagem final
         let webhookMessage = ''
 
-        // Tentar parsear como JSON primeiro
         try {
           const responseData = JSON.parse(responseText)
-          console.log('[FiQOn] Resposta parseada como JSON:', responseData)
-
-          // Extrair mensagem do JSON (conforme $7.body.message do FiQOn)
           webhookMessage = responseData.message || responseData.msg || responseData.mensagem || ''
-        } catch (parseError) {
-          // Se não for JSON, usar o texto puro como mensagem
-          console.log('[FiQOn] Resposta não é JSON, usando texto puro')
+        } catch {
           webhookMessage = responseText.trim()
         }
 
-        console.log('[FiQOn] Mensagem final capturada:', webhookMessage)
-
-        // Se temos uma mensagem, exibir para o usuário
         if (webhookMessage) {
-          // Verificar se é erro (geralmente contém palavras-chave de erro)
           const lowerMessage = webhookMessage.toLowerCase()
           const isError = lowerMessage.includes('erro') ||
                          lowerMessage.includes('já') ||
@@ -644,21 +465,18 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
                          !response.ok
 
           if (isError) {
-            // Exibir mensagem de erro retornada pelo webhook
             setErrorMessage(webhookMessage)
             setShowErrorModal(true)
             setLoading(false)
             return
           }
 
-          // Se sucesso, exibir mensagem de sucesso
           setSuccessMessage(webhookMessage)
           setLoading(false)
           setShowSuccessModal(true)
           return
         }
 
-        // Se não houver mensagem mas resposta for OK, sucesso genérico
         if (response.ok) {
           setSuccessMessage('Cadastro realizado com sucesso!')
           setLoading(false)
@@ -666,21 +484,18 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
           return
         }
 
-        // Se não houver mensagem e não for ok, erro genérico
         setErrorMessage('Erro ao processar cadastro. Tente novamente.')
         setShowErrorModal(true)
         setLoading(false)
 
       } catch (fetchError: any) {
         clearTimeout(timeoutId)
-
         if (fetchError.name === 'AbortError') {
           setErrorMessage('Tempo limite excedido. O servidor está demorando para responder. Tente novamente.')
           setShowErrorModal(true)
           setLoading(false)
           return
         }
-
         throw fetchError
       }
 
@@ -692,38 +507,12 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
     }
   }
 
-  const getAvailablePlans = () => {
-    if (formData.typeChip === "eSim") {
-      return Object.entries(PLANS)
-        .flat()
-        .filter((plan) => plan.esim)
-    }
-    return Object.values(PLANS).flat()
-  }
-
   useEffect(() => {
     const video = document.createElement('video')
     video.preload = 'auto'
     video.src = 'https://myehbxfidszreorsaexi.supabase.co/storage/v1/object/public/adesao/adesao.mp4'
     video.load()
   }, [])
-
-  // Monitorar campos de endereço e liberar typeFrete quando todos estiverem preenchidos
-  useEffect(() => {
-    if (activeField === "complement" ||
-        (formData.district.trim().length > 0 &&
-         formData.city.trim().length > 0 &&
-         formData.state !== "" &&
-         formData.street.trim().length > 0)) {
-      if (formData.district.trim().length > 0 &&
-          formData.city.trim().length > 0 &&
-          formData.state !== "" &&
-          formData.street.trim().length > 0 &&
-          activeField !== "typeFrete") {
-        setActiveField("typeFrete")
-      }
-    }
-  }, [formData.district, formData.city, formData.state, formData.street, activeField])
 
   if (showSuccessModal) {
     return (
@@ -737,34 +526,25 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
             <p>
               Para darmos continuidade com à ativação do seu plano, é necessário realizar o pagamento da sua taxa associativa, no valor proporcional ao plano escolhido por você.
             </p>
-
             <p>
               Essa taxa é solicitada antes da ativação, pois ela confirma oficialmente a sua entrada na Federal Associados.
             </p>
-
             <p className="font-semibold">
               O valor é usado para cobrir os custos administrativos e operacionais, como:
             </p>
-
             <ul className="list-disc list-inside space-y-1 ml-4 text-sm">
               <li>Geração do número.</li>
               <li>Configuração da linha.</li>
               <li>Liberação do seu escritório virtual.</li>
               <li>E acesso a todos os benefícios exclusivos da empresa, como o Clube de Descontos, Cinema Grátis, Programa PBI, entre outros.</li>
             </ul>
-
             <p>
               O pagamento da taxa é o primeiro passo para liberar o seu benefício de internet móvel e garantir sua ativação com total segurança.
             </p>
-
             <p>
               Logo após efetuar o pagamento, você receberá um e-mail para fazer a biometria digital.
             </p>
-
-            <p className="font-semibold">
-              Após isso já partimos para ativação do seu plano.
-            </p>
-
+            <p className="font-semibold">Após isso já partimos para ativação do seu plano.</p>
             <p className="text-center font-bold text-base md:text-lg mt-4">
               Clique no botão abaixo para continuar:
             </p>
@@ -790,8 +570,8 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
         <Card>
           <CardContent className="pt-4 md:pt-6 px-4 md:px-6">
             <h2 className="text-lg md:text-xl font-semibold mb-4 md:mb-6">Dados Pessoais</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-4">
-              <div className={`space-y-2 ${!isFieldUnlocked("cpf") ? "opacity-50 pointer-events-none" : ""}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="cpf">
                   CPF <span className="text-red-500">*</span>
                 </Label>
@@ -801,13 +581,12 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
                   onChange={(e) => handleInputChange("cpf", e.target.value)}
                   placeholder="000.000.000-00"
                   maxLength={14}
-                  required
-                  disabled={!isFieldUnlocked("cpf")}
-                  className={cpfValidated ? "border-green-500" : ""}
+                  className={fieldErrors.cpf ? "border-red-500 border-2" : cpfValidated ? "border-green-500" : ""}
                 />
+                {fieldErrors.cpf && <p className="text-sm text-red-500 font-medium">{fieldErrors.cpf}</p>}
               </div>
 
-              <div className={`space-y-2 ${!isFieldUnlocked("birth") ? "opacity-50 pointer-events-none" : ""}`}>
+              <div className="space-y-2">
                 <Label htmlFor="birth">
                   Data de Nascimento <span className="text-red-500">*</span>
                 </Label>
@@ -819,16 +598,12 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
                   onBlur={(e) => validateCPFWithAPI(formData.cpf, e.target.value)}
                   placeholder="DD/MM/AAAA"
                   maxLength={10}
-                  required
-                  disabled={!isFieldUnlocked("birth")}
-                  className={birthValid === false ? "border-red-500 border-2" : birthValid === true ? "border-green-500" : ""}
+                  className={fieldErrors.birth ? "border-red-500 border-2" : birthValid === true ? "border-green-500" : ""}
                 />
-                {birthValid === false && (
-                  <p className="text-sm text-red-500 font-medium">Data incompleta! Digite no formato DD/MM/AAAA (8 dígitos).</p>
-                )}
+                {fieldErrors.birth && <p className="text-sm text-red-500 font-medium">{fieldErrors.birth}</p>}
               </div>
 
-              <div className={`space-y-2 md:col-span-2 lg:col-span-1 ${!isFieldUnlocked("name") ? "opacity-50 pointer-events-none" : ""}`}>
+              <div className="space-y-2 md:col-span-2 lg:col-span-1">
                 <Label htmlFor="name">
                   Nome Completo <span className="text-red-500">*</span>
                 </Label>
@@ -837,11 +612,10 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
                   placeholder="Seu nome completo"
-                  required
                   readOnly={cpfValidated}
-                  disabled={!isFieldUnlocked("name")}
-                  className={cpfValidated ? "border-green-500" : ""}
+                  className={fieldErrors.name ? "border-red-500 border-2" : cpfValidated ? "border-green-500" : ""}
                 />
+                {fieldErrors.name && <p className="text-sm text-red-500 font-medium">{fieldErrors.name}</p>}
               </div>
             </div>
           </CardContent>
@@ -851,8 +625,8 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
         <Card>
           <CardContent className="pt-4 md:pt-6 px-4 md:px-6">
             <h2 className="text-lg md:text-xl font-semibold mb-4 md:mb-6">Contato</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-4">
-              <div className={`space-y-2 md:col-span-2 ${!isFieldUnlocked("email") ? "opacity-50 pointer-events-none" : ""}`}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="email">
                   Email <span className="text-red-500">*</span>
                 </Label>
@@ -863,13 +637,12 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
                   onChange={(e) => handleInputChange("email", e.target.value)}
                   onBlur={(e) => validateEmail(e.target.value)}
                   placeholder="seu@email.com"
-                  required
-                  disabled={!isFieldUnlocked("email")}
-                  className={emailValidated ? "border-green-500" : ""}
+                  className={fieldErrors.email ? "border-red-500 border-2" : emailValidated ? "border-green-500" : ""}
                 />
+                {fieldErrors.email && <p className="text-sm text-red-500 font-medium">{fieldErrors.email}</p>}
               </div>
 
-              <div className={`space-y-2 ${!isFieldUnlocked("cell") ? "opacity-50 pointer-events-none" : ""}`}>
+              <div className="space-y-2">
                 <Label htmlFor="cell">
                   WhatsApp <span className="text-red-500">*</span>
                 </Label>
@@ -887,24 +660,23 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
                   }}
                   placeholder="(00) 00000-0000"
                   maxLength={15}
-                  required
-                  disabled={!isFieldUnlocked("cell")}
                   className={
-                    whatsappValid === false
+                    fieldErrors.cell || whatsappValid === false
                       ? "border-red-500 border-2"
                       : whatsappValid === true
                       ? "border-green-500"
                       : ""
                   }
                 />
-                {whatsappValidating && (
-                  <p className="text-sm text-blue-600 font-medium">Validando WhatsApp...</p>
-                )}
+                {whatsappValidating && <p className="text-sm text-blue-600 font-medium">Validando WhatsApp...</p>}
                 {whatsappValid === false && !whatsappValidating && (
                   <p className="text-sm text-red-500 font-medium">WhatsApp inválido! Verifique o número digitado.</p>
                 )}
                 {whatsappValid === true && (
                   <p className="text-sm text-green-600 font-medium">WhatsApp válido</p>
+                )}
+                {fieldErrors.cell && whatsappValid !== false && (
+                  <p className="text-sm text-red-500 font-medium">{fieldErrors.cell}</p>
                 )}
               </div>
             </div>
@@ -915,8 +687,8 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
         <Card>
           <CardContent className="pt-4 md:pt-6 px-4 md:px-6">
             <h2 className="text-lg md:text-xl font-semibold mb-4 md:mb-6">Endereço</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-4">
-              <div className={`space-y-2 ${!isFieldUnlocked("cep") ? "opacity-50 pointer-events-none" : ""}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="cep">
                   CEP <span className="text-red-500">*</span>
                 </Label>
@@ -930,16 +702,20 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
                   onBlur={(e) => fetchAddressByCEP(e.target.value)}
                   placeholder="00000-000"
                   maxLength={9}
-                  required
-                  disabled={!isFieldUnlocked("cep")}
-                  className={cepValid === false ? "border-red-500 border-2" : cepValid === true ? "border-green-500" : ""}
+                  className={
+                    fieldErrors.cep || cepValid === false
+                      ? "border-red-500 border-2"
+                      : cepValid === true
+                      ? "border-green-500"
+                      : ""
+                  }
                 />
-                {cepValid === false && (
-                  <p className="text-sm text-red-500 font-medium">CEP inválido! Verifique o número digitado.</p>
+                {(fieldErrors.cep || cepValid === false) && (
+                  <p className="text-sm text-red-500 font-medium">{fieldErrors.cep || "CEP inválido!"}</p>
                 )}
               </div>
 
-              <div className={`space-y-2 ${!isFieldUnlocked("district") ? "opacity-50 pointer-events-none" : ""}`}>
+              <div className="space-y-2">
                 <Label htmlFor="district">
                   Bairro <span className="text-red-500">*</span>
                 </Label>
@@ -948,12 +724,12 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
                   value={formData.district}
                   onChange={(e) => handleInputChange("district", e.target.value)}
                   placeholder="Seu bairro"
-                  required
-                  disabled={!isFieldUnlocked("district")}
+                  className={fieldErrors.district ? "border-red-500 border-2" : ""}
                 />
+                {fieldErrors.district && <p className="text-sm text-red-500 font-medium">{fieldErrors.district}</p>}
               </div>
 
-              <div className={`space-y-2 ${!isFieldUnlocked("city") ? "opacity-50 pointer-events-none" : ""}`}>
+              <div className="space-y-2">
                 <Label htmlFor="city">
                   Cidade <span className="text-red-500">*</span>
                 </Label>
@@ -962,22 +738,20 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
                   value={formData.city}
                   onChange={(e) => handleInputChange("city", e.target.value)}
                   placeholder="Sua cidade"
-                  required
-                  disabled={!isFieldUnlocked("city")}
+                  className={fieldErrors.city ? "border-red-500 border-2" : ""}
                 />
+                {fieldErrors.city && <p className="text-sm text-red-500 font-medium">{fieldErrors.city}</p>}
               </div>
 
-              <div className={`space-y-2 ${!isFieldUnlocked("state") ? "opacity-50 pointer-events-none" : ""}`}>
+              <div className="space-y-2">
                 <Label htmlFor="state">
                   Estado <span className="text-red-500">*</span>
                 </Label>
                 <Select
                   value={formData.state}
                   onValueChange={(value) => handleInputChange("state", value)}
-                  required
-                  disabled={!isFieldUnlocked("state")}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={fieldErrors.state ? "border-red-500 border-2" : ""}>
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -988,9 +762,10 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldErrors.state && <p className="text-sm text-red-500 font-medium">{fieldErrors.state}</p>}
               </div>
 
-              <div className={`space-y-2 md:col-span-2 lg:col-span-3 ${!isFieldUnlocked("street") ? "opacity-50 pointer-events-none" : ""}`}>
+              <div className="space-y-2 md:col-span-2 lg:col-span-3">
                 <Label htmlFor="street">
                   Endereço <span className="text-red-500">*</span>
                 </Label>
@@ -999,30 +774,28 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
                   value={formData.street}
                   onChange={(e) => handleInputChange("street", e.target.value)}
                   placeholder="Rua, Avenida, etc"
-                  required
-                  disabled={!isFieldUnlocked("street")}
+                  className={fieldErrors.street ? "border-red-500 border-2" : ""}
                 />
+                {fieldErrors.street && <p className="text-sm text-red-500 font-medium">{fieldErrors.street}</p>}
               </div>
 
-              <div className={`space-y-2 ${!isFieldUnlocked("number") ? "opacity-50 pointer-events-none" : ""}`}>
+              <div className="space-y-2">
                 <Label htmlFor="number">Número</Label>
                 <Input
                   id="number"
                   value={formData.number}
                   onChange={(e) => handleInputChange("number", e.target.value)}
                   placeholder="123"
-                  disabled={!isFieldUnlocked("number")}
                 />
               </div>
 
-              <div className={`space-y-2 md:col-span-2 ${!isFieldUnlocked("complement") ? "opacity-50 pointer-events-none" : ""}`}>
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="complement">Complemento</Label>
                 <Input
                   id="complement"
                   value={formData.complement}
                   onChange={(e) => handleInputChange("complement", e.target.value)}
                   placeholder="Apto, Bloco, etc"
-                  disabled={!isFieldUnlocked("complement")}
                 />
               </div>
             </div>
